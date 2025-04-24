@@ -2,3 +2,4 @@ telebot
 telethon
 asyncio
 os
+cryptography
