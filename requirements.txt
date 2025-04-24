@@ -1,0 +1,4 @@
+telebot
+telethon
+asyncio
+os
